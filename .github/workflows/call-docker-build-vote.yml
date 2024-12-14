@@ -10,10 +10,10 @@ on:
 
 env:
   IMAGE_REGISTRY: myregistry.azurecr.io
-  IMAGE_NAME: myapp/result
-  AKS_RESOURCE_GROUP: my-aks-resource-group
-  AKS_CLUSTER_NAME: my-aks-cluster
-  K8S_DEPLOYMENT_FILE: ./K8s-specifications/results-deployment.yaml
+  IMAGE_NAME: myapp/vote
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+  AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+  K8S_DEPLOYMENT_FILE: ./K8s-specifications/vote-deployment.yaml
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   NAMESPACE: cba
 
