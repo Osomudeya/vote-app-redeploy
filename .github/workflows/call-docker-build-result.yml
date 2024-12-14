@@ -16,6 +16,7 @@ env:
   K8S_DEPLOYMENT_FILE: ./K8s-specifications/results-deployment.yaml
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   NAMESPACE: cba
+  ACR_NAME: ${{ secrets.ACR_NAME }}
 
 jobs:
   build-and-deploy:
