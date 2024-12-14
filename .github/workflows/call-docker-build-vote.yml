@@ -1,82 +1,55 @@
-name: Build Vote
-# template source: https://github.com/dockersamples/.github/blob/main/templates/call-docker-build.yaml
+name: Build and Deploy to AKS
 
 on:
-  # we want pull requests so we can build(test) but not push to image registry
-  push:
-    branches:
-      - 'main'
-    # only build when important files change
-    paths:
-      - 'vote/**'
-      - '.github/workflows/call-docker-build-vote.yaml'
   pull_request:
     branches:
       - 'main'
-    # only build when important files change
     paths:
       - 'vote/**'
-      - '.github/workflows/call-docker-build-vote.yaml'
+      - '.github/workflows/build-and-deploy.yaml'
+
+env:
+  IMAGE_REGISTRY: myregistry.azurecr.io
+  IMAGE_NAME: myapp/vote
+  AKS_RESOURCE_GROUP: my-aks-resource-group
+  AKS_CLUSTER_NAME: my-aks-cluster
+  K8S_DEPLOYMENT_FILE: ./K8s-specifications/vote-deployment.yaml
+  NAMESPACE: default
 
 jobs:
-  call-docker-build:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
 
-    name: Vote Call Docker Build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    uses: dockersamples/.github/.github/workflows/reusable-docker-build.yaml@main
+      - name: Log in to Azure CLI
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    permissions:
-      contents: read
-      packages: write # needed to push docker image to ghcr.io
-      pull-requests: write # needed to create and update comments in PRs
-    
-    secrets:
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
 
-      # Only needed if with:dockerhub-enable is true below
-      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -f ./vote/Dockerfile .
 
-      # Only needed if with:dockerhub-enable is true below
-      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push Docker image to ACR
+        run: |
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-    with:
-      
-      ### REQUIRED
-      ### ENABLE ONE OR BOTH REGISTRIES
-      ### tell docker where to push.
-      ### NOTE if Docker Hub is set to true, you must set secrets above and also add account/repo/tags below
-      dockerhub-enable: true
-      ghcr-enable: true
+      - name: Set AKS context
+        run: |
+          az aks get-credentials --resource-group ${{ env.AKS_RESOURCE_GROUP }} --name ${{ env.AKS_CLUSTER_NAME }}
 
-      ### REQUIRED 
-      ### A list of the account/repo names for docker build. List should match what's enabled above
-      ### defaults to:
-      image-names: |
-        ghcr.io/dockersamples/example-voting-app-vote
-        dockersamples/examplevotingapp_vote
-      
-      ### REQUIRED set rules for tagging images, based on special action syntax:
-      ### https://github.com/docker/metadata-action#tags-input
-      ### defaults to:
-      tag-rules: |
-        type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=raw,value=before,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=raw,value=after,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=ref,event=pr
-      
-      ### path to where docker should copy files into image
-      ### defaults to root of repository (.)
-      context: vote
-      
-      ### Dockerfile alternate name. Default is Dockerfile (relative to context path)
-      # file: Containerfile
+      - name: Deploy to AKS
+        run: |
+          kubectl apply -f ${{ env.K8S_DEPLOYMENT_FILE }}
 
-      ### build stage to target, defaults to empty, which builds to last stage in Dockerfile
-      # target:
-      
-      ### platforms to build for, defaults to linux/amd64
-      ### other options: linux/amd64,linux/arm64,linux/arm/v7
-      platforms: linux/amd64,linux/arm64,linux/arm/v7
-      
-      ### Create a PR comment with image tags and labels
-      ### defaults to false
-      # comment-enable: false
+      - name: Update Image in Kubernetes Deployment
+        run: |
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} ${ env.CONTAINER_NAME }}=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --namespace ${{ env.NAMESPACE }}
