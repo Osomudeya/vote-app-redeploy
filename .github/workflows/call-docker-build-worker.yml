@@ -10,7 +10,7 @@ on:
 
 env:
   IMAGE_REGISTRY: myregistry.azurecr.io
-  IMAGE_NAME: myapp/result
+  IMAGE_NAME: myapp/worker
   AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
   K8S_DEPLOYMENT_FILE: ./K8s-specifications/results-deployment.yaml
